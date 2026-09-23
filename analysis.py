@@ -3,10 +3,11 @@ import numpy as np
 
 
 def analyze_plant_health(image, green_mask, yellow_mask, brown_mask):
-    """Analyzes plant leaf health based on color segmentation masks.
+    """
+    Analyzes plant leaf health based on color segmentation masks.
 
     Parameters:
-        image: Original input image (BGR numpy array).
+        image: Original input image (RGB or BGR numpy array).
         green_mask: Binary mask for green areas (0 or 255).
         yellow_mask: Binary mask for yellow areas (0 or 255).
         brown_mask: Binary mask for brown areas (0 or 255).
@@ -48,7 +49,8 @@ def analyze_plant_health(image, green_mask, yellow_mask, brown_mask):
     contours, _ = cv2.findContours(
         affected_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
-    cv2.drawContours(highlighted_image, contours, -1, (0, 0, 255), 2)
+    # Draw red outlines: (255, 0, 0) for RGB, or (0, 0, 255) for BGR
+    cv2.drawContours(highlighted_image, contours, -1, (255, 0, 0), 2)
 
     # 5. Diagnostic observation
     if affected_pct < 5.0:
