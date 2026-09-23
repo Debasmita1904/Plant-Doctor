@@ -3,30 +3,30 @@ import numpy as np
 
 
 def analyze_plant_health(image, green_mask, yellow_mask, brown_mask):
-    """
-    Analyzes plant leaf health based on color segmentation masks.
+    """Analyzes plant leaf health based on color segmentation masks.
 
     Parameters:
-        image: Original input image (numpy array).
-        green_mask: Binary mask of healthy green leaf tissue (values 0 or 255).
-        yellow_mask: Binary mask of chlorotic/yellow tissue (values 0 or 255).
-        brown_mask: Binary mask of necrotic/brown tissue (values 0 or 255).
+        image: Original input image (BGR numpy array).
+        green_mask: Binary mask for green areas (0 or 255).
+        yellow_mask: Binary mask for yellow areas (0 or 255).
+        brown_mask: Binary mask for brown areas (0 or 255).
 
     Returns:
-        results: Dictionary containing area breakdown, percentages, observation,
-                 and the annotated output image.
+        Dictionary containing health percentages, diagnostic observation,
+        and the annotated output image.
     """
-    # 1. Combine masks to determine total leaf area
-    combined_leaf_mask = cv2.bitwise_or(green_mask, yellow_mask)
-    combined_leaf_mask = cv2.bitwise_or(combined_leaf_mask, brown_mask)
+    # 1. Combine masks cleanly to avoid double counting overlaps
+    affected_mask = cv2.bitwise_or(yellow_mask, brown_mask)
+    leaf_mask = cv2.bitwise_or(green_mask, affected_mask)
 
-    # 2. Count non-zero pixels (pixel areas)
-    total_leaf_pixels = cv2.countNonZero(combined_leaf_mask)
-    green_pixels = cv2.countNonZero(green_mask)
-    yellow_pixels = cv2.countNonZero(yellow_mask)
-    brown_pixels = cv2.countNonZero(brown_mask)
+    # 2. Count non-zero pixel areas
+    total_leaf_pixels = int(cv2.countNonZero(leaf_mask))
+    green_pixels = int(cv2.countNonZero(green_mask))
+    yellow_pixels = int(cv2.countNonZero(yellow_mask))
+    brown_pixels = int(cv2.countNonZero(brown_mask))
+    affected_pixels = int(cv2.countNonZero(affected_mask))
 
-    # Guard against division by zero if no leaf was segmented
+    # Guard: No leaf detected
     if total_leaf_pixels == 0:
         return {
             "green_percentage": 0.0,
@@ -37,24 +37,20 @@ def analyze_plant_health(image, green_mask, yellow_mask, brown_mask):
             "highlighted_image": image.copy(),
         }
 
-    # 3. Calculate percentages relative to total leaf area
+    # 3. Calculate percentage breakdown relative to total leaf area
     green_pct = round((green_pixels / total_leaf_pixels) * 100, 2)
     yellow_pct = round((yellow_pixels / total_leaf_pixels) * 100, 2)
     brown_pct = round((brown_pixels / total_leaf_pixels) * 100, 2)
-    affected_pct = round(yellow_pct + brown_pct, 2)
+    affected_pct = round((affected_pixels / total_leaf_pixels) * 100, 2)
 
-    # 4. Combine yellow and brown regions (affected/diseased area)
-    affected_mask = cv2.bitwise_or(yellow_mask, brown_mask)
-
-    # 5. Highlight affected regions on the original image using red contours
+    # 4. Highlight affected regions on the original image (red contours)
     highlighted_image = image.copy()
     contours, _ = cv2.findContours(
         affected_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
-    # Draw red outline around affected regions (thickness = 2)
     cv2.drawContours(highlighted_image, contours, -1, (0, 0, 255), 2)
 
-    # 6. Generate plant health observation
+    # 5. Diagnostic observation
     if affected_pct < 5.0:
         observation = "Healthy: Minimal to no discoloration detected."
     elif affected_pct < 20.0:
@@ -62,7 +58,6 @@ def analyze_plant_health(image, green_mask, yellow_mask, brown_mask):
     else:
         observation = "Severe discoloration detected: Significant necrotic or chlorotic tissue observed."
 
-    # 7. Final structured output
     return {
         "green_percentage": green_pct,
         "yellow_percentage": yellow_pct,
